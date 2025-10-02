@@ -18,7 +18,12 @@ def validate_email(email: str):
         raise ValueError(f"Invalid email: {email}")
 
 class Person:
+    """
+    Represents a person with basic info.
+    Used as a base for Student and Instructor.
+    """
     def __init__(self, name: str, age: int, email: str):
+        # Initialize a person with name, age, and email
         validate_nonempty_str(name, "name")
         validate_nonneg_int(age, "age")
         validate_email(email)
@@ -26,20 +31,29 @@ class Person:
         self.age = age
         self._email = email
     def introduce(self):
+        """Prints a simple introduction for the person."""
         print(f"Hello, my name is {self.name}, I am {self.age} years old.")
     def to_dict(self) -> Dict[str, Any]:
+        """Returns a dictionary representation of the person."""
         return {"type": "Person", "name": self.name, "age": self.age, "email": self._email}
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "Person":
+        """Creates a Person object from a dictionary."""
         return cls(name=data["name"], age=data["age"], email=data["email"])
 
 class Student(Person):
+    """
+    Student class, inherits from Person.
+    Adds student_id and registered courses.
+    """
     def __init__(self, name: str, age: int, email: str, student_id: str):
+        # Initialize a student with ID and empty course list
         super().__init__(name, age, email)
         validate_nonempty_str(student_id, "student_id")
         self.student_id = student_id
         self.registered_courses: List["Course"] = []
     def register_course(self, course: "Course"):
+        """Register the student to a course."""
         if not isinstance(course, Course):
             raise TypeError("course must be a Course object")
         if course not in self.registered_courses:
@@ -47,6 +61,7 @@ class Student(Person):
             if self not in course.enrolled_students:
                 course._enroll_without_backlink(self)
     def to_dict(self) -> Dict[str, Any]:
+        """Returns a dictionary representation of the student."""
         return {
             "type": "Student",
             "name": self.name,
@@ -57,20 +72,28 @@ class Student(Person):
         }
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "Student":
+        """Creates a Student object from a dictionary."""
         return cls(data["name"], data["age"], data["email"], data["student_id"])
 
 class Instructor(Person):
+    """
+    Instructor class, inherits from Person.
+    Adds instructor_id and assigned courses.
+    """
     def __init__(self, name: str, age: int, email: str, instructor_id: str):
+        # Initialize an instructor with ID and empty course list
         super().__init__(name, age, email)
         validate_nonempty_str(instructor_id, "instructor_id")
         self.instructor_id = instructor_id
         self.assigned_courses: List["Course"] = []
     def assign_course(self, course: "Course"):
+        """Assign the instructor to a course."""
         if not isinstance(course, Course):
             raise TypeError("course must be a Course object")
         if course not in self.assigned_courses:
             self.assigned_courses.append(course)
     def to_dict(self) -> Dict[str, Any]:
+        """Returns a dictionary representation of the instructor."""
         return {
             "type": "Instructor",
             "name": self.name,
@@ -81,10 +104,15 @@ class Instructor(Person):
         }
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "Instructor":
+        """Creates an Instructor object from a dictionary."""
         return cls(data["name"], data["age"], data["email"], data["instructor_id"])
 
 class Course:
+    """
+    Course class holds course info, instructor, and enrolled students.
+    """
     def __init__(self, course_id: str, course_name: str, instructor: Instructor):
+        # Initialize a course with ID, name, instructor, and empty student list
         validate_nonempty_str(course_id, "course_id")
         validate_nonempty_str(course_name, "course_name")
         if not isinstance(instructor, Instructor):
@@ -94,6 +122,7 @@ class Course:
         self.instructor = instructor
         self.enrolled_students: List[Student] = []
     def add_student(self, student: "Student"):
+        """Add a student to the course."""
         if not isinstance(student, Student):
             raise TypeError("student must be a Student object")
         if student not in self.enrolled_students:
@@ -101,9 +130,11 @@ class Course:
             if self not in student.registered_courses:
                 student.register_course(self)
     def _enroll_without_backlink(self, student: "Student"):
+        # Internal: enroll student without updating their course list
         if student not in self.enrolled_students:
             self.enrolled_students.append(student)
     def set_instructor(self, instructor: "Instructor"):
+        """Set or change the instructor for the course."""
         if not isinstance(instructor, Instructor):
             raise TypeError("instructor must be an Instructor object")
         if self.instructor is instructor:
@@ -117,6 +148,7 @@ class Course:
         if self not in instructor.assigned_courses:
             instructor.assigned_courses.append(self)
     def to_dict(self) -> Dict[str, Any]:
+        """Returns a dictionary representation of the course."""
         return {
             "type": "Course",
             "course_id": self.course_id,
@@ -126,14 +158,20 @@ class Course:
         }
     @classmethod
     def from_dict(cls, data: Dict[str, Any], instructor_lookup: Dict[str, Instructor]) -> "Course":
+        """Creates a Course object from a dictionary."""
         return cls(data["course_id"], data["course_name"], instructor_lookup[data["instructor_id"]])
 
 class DataManager:
+    """
+    Handles all data storage and retrieval for students, instructors, and courses.
+    """
     def __init__(self):
+        # Initialize empty dictionaries for all entities
         self.students: Dict[str, Student] = {}
         self.instructors: Dict[str, Instructor] = {}
         self.courses: Dict[str, Course] = {}
     def email_in_use(self, email: str, exclude_kind: str = None, exclude_id: str = None) -> bool:
+        """Check if an email is already used by a student or instructor."""
         for s in self.students.values():
             if s._email == email and not (exclude_kind == "student" and s.student_id == exclude_id):
                 return True
@@ -142,31 +180,37 @@ class DataManager:
                 return True
         return False
     def add_student(self, student: Student):
+        """Add a new student to the system."""
         if not isinstance(student, Student): raise TypeError("student must be a Student object")
         if student.student_id in self.students: raise ValueError(f"Duplicate student_id: {student.student_id}")
         if self.email_in_use(student._email): raise ValueError(f"Email already in use: {student._email}")
         self.students[student.student_id] = student
     def add_instructor(self, instructor: Instructor):
+        """Add a new instructor to the system."""
         if not isinstance(instructor, Instructor): raise TypeError("instructor must be an Instructor object")
         if instructor.instructor_id in self.instructors: raise ValueError(f"Duplicate instructor_id: {instructor.instructor_id}")
         if self.email_in_use(instructor._email): raise ValueError(f"Email already in use: {instructor._email}")
         self.instructors[instructor.instructor_id] = instructor
     def add_course(self, course: Course):
+        """Add a new course to the system."""
         if not isinstance(course, Course): raise TypeError("course must be a Course object")
         if course.course_id in self.courses: raise ValueError(f"Duplicate course_id: {course.course_id}")
         self.courses[course.course_id] = course
         course.set_instructor(course.instructor)
     def to_dict(self):
+        """Returns a dictionary of all data for saving."""
         return {
             "students": [s.to_dict() for s in self.students.values()],
             "instructors": [i.to_dict() for i in self.instructors.values()],
             "courses": [c.to_dict() for c in self.courses.values()]
         }
     def save_json(self, path: str):
+        """Save all data to a JSON file."""
         with open(path, "w", encoding="utf-8") as f:
             json.dump(self.to_dict(), f, indent=2)
     @classmethod
     def load_json(cls, path: str) -> "DataManager":
+        """Load all data from a JSON file."""
         with open(path, "r", encoding="utf-8") as f:
             data = json.load(f)
         dm = cls()
@@ -191,7 +235,12 @@ class DataManager:
         return dm
 
 class SchoolQt(QMainWindow):
+    """
+    Main window for the school management system GUI.
+    Handles all UI and user interactions.
+    """
     def __init__(self):
+        # Set up the main window and initialize data
         super().__init__()
         self.setWindowTitle("School Management System")
         self.resize(1200, 750)
@@ -200,6 +249,7 @@ class SchoolQt(QMainWindow):
         self._build_ui()
         self._refresh_all()
     def _build_ui(self):
+        # Build all UI sections
         self._build_menu_toolbar()
         central = QWidget()
         root = QVBoxLayout(central)
@@ -209,18 +259,21 @@ class SchoolQt(QMainWindow):
         root.addWidget(self._tables_section())
         self.setCentralWidget(central)
     def _build_menu_toolbar(self):
+        # Create menu and toolbar actions
         save_act = QAction("Save...", self); save_act.triggered.connect(self._save_json)
         load_act = QAction("Load...", self); load_act.triggered.connect(self._load_json)
         export_act = QAction("Export CSV...", self); export_act.triggered.connect(self._export_csv)
         toolbar = QToolBar("Main"); self.addToolBar(toolbar)
         toolbar.addAction(save_act); toolbar.addAction(load_act); toolbar.addAction(export_act)
     def _forms_section(self):
+        # Build the forms for adding/editing entities
         layout = QHBoxLayout()
         layout.addWidget(self._student_form())
         layout.addWidget(self._instructor_form())
         layout.addWidget(self._course_form())
         return layout
     def _student_form(self):
+        # Student form UI
         g = QGroupBox("Add / Edit Student")
         grid = QGridLayout(g)
         self.s_name = QLineEdit(); self.s_age = QLineEdit(); self.s_email = QLineEdit(); self.s_id = QLineEdit()
@@ -233,6 +286,7 @@ class SchoolQt(QMainWindow):
         grid.addWidget(self.s_add_btn,2,1); grid.addWidget(clr,2,3)
         return g
     def _instructor_form(self):
+        # Instructor form UI
         g = QGroupBox("Add / Edit Instructor")
         grid = QGridLayout(g)
         self.i_name = QLineEdit(); self.i_age = QLineEdit(); self.i_email = QLineEdit(); self.i_id = QLineEdit()
@@ -245,6 +299,7 @@ class SchoolQt(QMainWindow):
         grid.addWidget(self.i_add_btn,2,1); grid.addWidget(clr,2,3)
         return g
     def _course_form(self):
+        # Course form UI
         g = QGroupBox("Add / Edit Course")
         grid = QGridLayout(g)
         self.c_id = QLineEdit(); self.c_name = QLineEdit(); self.c_instructor = QComboBox()
@@ -256,6 +311,7 @@ class SchoolQt(QMainWindow):
         grid.addWidget(self.c_add_btn,2,1); grid.addWidget(clr,2,3)
         return g
     def _actions_section(self):
+        # Section for registering students and assigning instructors
         layout = QHBoxLayout()
         reg_box = QGroupBox("Register Student to Course")
         rg = QGridLayout(reg_box)
@@ -274,6 +330,7 @@ class SchoolQt(QMainWindow):
         layout.addWidget(reg_box); layout.addWidget(asg_box)
         return layout
     def _search_section(self):
+        # Search bar section
         layout = QHBoxLayout()
         layout.addWidget(QLabel("Search (Name / ID / Course):"))
         self.search_edit = QLineEdit()
@@ -282,6 +339,7 @@ class SchoolQt(QMainWindow):
         layout.addWidget(self.search_edit); layout.addWidget(go); layout.addWidget(clr); layout.addStretch(1)
         return layout
     def _tables_section(self):
+        # Tables for displaying students, instructors, and courses
         self.tabs = QTabWidget()
         self.stu_table = QTableWidget(0,5)
         self.stu_table.setHorizontalHeaderLabels(["Student ID","Name","Age","Email","Courses"])
@@ -302,6 +360,7 @@ class SchoolQt(QMainWindow):
         wrap = QWidget(); v = QVBoxLayout(wrap); v.addWidget(self.tabs); v.addWidget(ctl)
         return wrap
     def _refresh_dropdowns(self):
+        # Update dropdowns with current data
         self.c_instructor.clear()
         self.c_instructor.addItems([f"{iid} | {ins.name}" for iid, ins in self.dm.instructors.items()])
         self.reg_student.clear()
@@ -313,6 +372,7 @@ class SchoolQt(QMainWindow):
         self.asg_course.clear()
         self.asg_course.addItems([f"{cid} | {c.course_name}" for cid, c in self.dm.courses.items()])
     def _refresh_tables(self, q: str = ""):
+        # Refresh all tables based on search query
         q = q.lower().strip()
         self.stu_table.setRowCount(0)
         for sid, s in self.dm.students.items():
@@ -339,24 +399,30 @@ class SchoolQt(QMainWindow):
         for table in (self.stu_table, self.ins_table, self.crs_table):
             table.resizeColumnsToContents()
     def _refresh_all(self):
+        # Refresh dropdowns and tables
         self._refresh_dropdowns()
         self._refresh_tables()
     def _apply_search(self):
+        # Apply search filter
         self._refresh_tables(self.search_edit.text())
     def _clear_search(self):
+        # Clear search filter
         self.search_edit.setText("")
         self._refresh_tables("")
     def _parse_int(self, s: str, field: str) -> int:
+        # Parse integer from string, raise error if invalid
         try:
             return int(s.strip())
         except:
             raise ValueError(f"{field} must be an integer")
     def _selected_row_values(self, table: QTableWidget) -> List[str]:
+        # Get values from the selected row in a table
         rows = table.selectionModel().selectedRows()
         if not rows: return []
         row = rows[0].row()
         return [table.item(row, c).text() if table.item(row, c) else "" for c in range(table.columnCount())]
     def _add_or_update_student(self):
+        # Add or update a student based on form input
         try:
             name = self.s_name.text().strip()
             age = self._parse_int(self.s_age.text(), "age")
@@ -381,6 +447,7 @@ class SchoolQt(QMainWindow):
         except Exception as e:
             QMessageBox.critical(self, "Error", str(e))
     def _add_or_update_instructor(self):
+        # Add or update an instructor based on form input
         try:
             name = self.i_name.text().strip()
             age = self._parse_int(self.i_age.text(), "age")
@@ -405,6 +472,7 @@ class SchoolQt(QMainWindow):
         except Exception as e:
             QMessageBox.critical(self, "Error", str(e))
     def _add_or_update_course(self):
+        # Add or update a course based on form input
         try:
             cid = self.c_id.text().strip()
             cname = self.c_name.text().strip()
@@ -429,6 +497,7 @@ class SchoolQt(QMainWindow):
         except Exception as e:
             QMessageBox.critical(self, "Error", str(e))
     def _register_student_to_course(self):
+        # Register a student to a selected course
         try:
             s_label = self.reg_student.currentText().strip()
             c_label = self.reg_course.currentText().strip()
@@ -441,6 +510,7 @@ class SchoolQt(QMainWindow):
         except Exception as e:
             QMessageBox.critical(self, "Error", str(e))
     def _assign_instructor_to_course(self):
+        # Assign an instructor to a selected course
         try:
             i_label = self.asg_instructor.currentText().strip()
             c_label = self.asg_course.currentText().strip()
@@ -453,6 +523,7 @@ class SchoolQt(QMainWindow):
         except Exception as e:
             QMessageBox.critical(self, "Error", str(e))
     def _edit_selected(self):
+        # Edit the selected row in the current table
         tab = self.tabs.currentWidget()
         if tab is self.stu_table:
             vals = self._selected_row_values(self.stu_table)
@@ -479,6 +550,7 @@ class SchoolQt(QMainWindow):
                 pass
             self.edit_mode["courses"] = cid; self.c_add_btn.setText("Update Course")
     def _delete_selected(self):
+        # Delete the selected row in the current table
         tab = self.tabs.currentWidget()
         try:
             if tab is self.stu_table:
@@ -516,6 +588,7 @@ class SchoolQt(QMainWindow):
         except Exception as e:
             QMessageBox.critical(self, "Error", str(e))
     def _clear_form(self, kind):
+        # Clear the form fields for the given entity type
         if kind == "students":
             self.s_name.clear(); self.s_age.clear(); self.s_email.clear(); self.s_id.clear()
             self.edit_mode["students"] = None; self.s_add_btn.setText("Add Student")
@@ -526,6 +599,7 @@ class SchoolQt(QMainWindow):
             self.c_id.clear(); self.c_name.clear(); self.c_instructor.setCurrentIndex(-1)
             self.edit_mode["courses"] = None; self.c_add_btn.setText("Add Course")
     def _save_json(self):
+        # Save all data to a JSON file
         path, _ = QFileDialog.getSaveFileName(self, "Save Data", "", "JSON Files (*.json)")
         if not path: return
         try:
@@ -534,6 +608,7 @@ class SchoolQt(QMainWindow):
         except Exception as e:
             QMessageBox.critical(self, "Error", str(e))
     def _load_json(self):
+        # Load all data from a JSON file
         path, _ = QFileDialog.getOpenFileName(self, "Load Data", "", "JSON Files (*.json)")
         if not path: return
         try:
@@ -544,6 +619,7 @@ class SchoolQt(QMainWindow):
         except Exception as e:
             QMessageBox.critical(self, "Error", str(e))
     def _export_csv(self):
+        # Export all data to CSV files
         folder = QFileDialog.getExistingDirectory(self, "Choose Folder to Export CSVs")
         if not folder: return
         try:
